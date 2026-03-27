@@ -1,0 +1,27 @@
+{
+  "name": "lottery-predictor",
+  "version": "1.0.0",
+  "description": "OpenClaw plugin for lottery number prediction based on historical analysis",
+  "type": "module",
+  "main": "dist/index.js",
+  "openclaw": {
+    "extensions": ["./index.ts"],
+    "minimumHostVersion": ">=2026.3.24"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.3.24"
+  },
+  "devDependencies": {
+    "@sinclair/typebox": "^0.34.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=22.14.0"
+  }
+}

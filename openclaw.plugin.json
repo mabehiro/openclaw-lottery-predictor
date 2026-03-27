@@ -1,0 +1,20 @@
+{
+  "id": "lottery-predictor",
+  "name": "Lottery Predictor",
+  "description": "Analyzes historical lottery data and generates number predictions for Lotto Texas, Powerball, and Mega Millions. For entertainment purposes only.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "dataDir": {
+        "type": "string",
+        "description": "Custom directory path for storing historical CSV data"
+      },
+      "autoRefreshEnabled": {
+        "type": "boolean",
+        "description": "Enable automatic daily data refresh",
+        "default": true
+      }
+    }
+  }
+}
