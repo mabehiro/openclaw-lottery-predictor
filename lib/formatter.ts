@@ -22,7 +22,7 @@ function topN<T>(arr: T[], n: number): T[] {
   return arr.slice(0, n);
 }
 
-export function formatFrequency(freq: FrequencyMap, label: string, top: number = 15): string {
+export function formatFrequency(freq: FrequencyMap, label: string, top: number = 10): string {
   const entries = Object.entries(freq)
     .map(([numStr, data]) => ({ number: parseInt(numStr), ...data }))
     .sort((a, b) => b.count - a.count);
@@ -30,140 +30,79 @@ export function formatFrequency(freq: FrequencyMap, label: string, top: number =
   const topEntries = topN(entries, top);
   const bottomEntries = topN(
     [...entries].sort((a, b) => a.count - b.count),
-    10
+    5
   );
 
-  let out = `### ${label} Frequency (Top ${top})\n\n`;
-  out += "| Number | Count | % |\n|--------|-------|---|\n";
-  for (const e of topEntries) {
-    out += `| ${e.number} | ${e.count} | ${e.percentage.toFixed(1)}% |\n`;
-  }
-
-  out += `\n### Least Frequent ${label} Numbers\n\n`;
-  out += "| Number | Count | % |\n|--------|-------|---|\n";
-  for (const e of bottomEntries) {
-    out += `| ${e.number} | ${e.count} | ${e.percentage.toFixed(1)}% |\n`;
-  }
+  let out = `${label} frequency top ${top}: ${topEntries.map((e) => `${e.number}(${e.count}, ${e.percentage.toFixed(1)}%)`).join(", ")}`;
+  out += `\nLeast frequent: ${bottomEntries.map((e) => `${e.number}(${e.count}, ${e.percentage.toFixed(1)}%)`).join(", ")}`;
 
   return out;
 }
 
 export function formatHotCold(result: HotColdResult, label: string): string {
-  let out = `### Hot ${label} Numbers (>1 std dev above mean)\n\n`;
-  if (result.hot.length === 0) {
-    out += "No significantly hot numbers in this period.\n\n";
-  } else {
-    out += "| Number | Count | Deviation |\n|--------|-------|-----------|\n";
-    for (const e of result.hot) {
-      out += `| ${e.number} | ${e.count} | +${e.deviation.toFixed(2)}σ |\n`;
-    }
-    out += "\n";
-  }
-
-  out += `### Cold ${label} Numbers (>1 std dev below mean)\n\n`;
-  if (result.cold.length === 0) {
-    out += "No significantly cold numbers in this period.\n\n";
-  } else {
-    out += "| Number | Count | Deviation |\n|--------|-------|-----------|\n";
-    for (const e of result.cold) {
-      out += `| ${e.number} | ${e.count} | ${e.deviation.toFixed(2)}σ |\n`;
-    }
-    out += "\n";
-  }
+  let out = `Hot ${label}: `;
+  out += result.hot.length === 0
+    ? "none"
+    : result.hot.map((e) => `${e.number}(${e.count}, +${e.deviation.toFixed(1)}σ)`).join(", ");
+  out += `\nCold ${label}: `;
+  out += result.cold.length === 0
+    ? "none"
+    : result.cold.map((e) => `${e.number}(${e.count}, ${e.deviation.toFixed(1)}σ)`).join(", ");
 
   return out;
 }
 
 export function formatGaps(result: GapResult): string {
-  let out = "### Overdue Numbers (>1.5x average gap)\n\n";
-  if (result.overdue.length === 0) {
-    out += "No significantly overdue numbers.\n\n";
-  } else {
-    out +=
-      "| Number | Draws Since Last | Avg Gap | Overdue Ratio |\n|--------|-----------------|---------|---------------|\n";
-    for (const e of topN(result.overdue, 15)) {
-      out += `| ${e.number} | ${e.drawsSinceLastSeen} | ${e.averageGap.toFixed(1)} | ${e.overdueRatio.toFixed(2)}x |\n`;
-    }
-    out += "\n";
-  }
-  return out;
+  if (result.overdue.length === 0) return "Overdue: none";
+  return `Overdue (>1.5x avg gap): ${topN(result.overdue, 10).map((e) => `${e.number}(${e.drawsSinceLastSeen} draws, ${e.overdueRatio.toFixed(1)}x)`).join(", ")}`;
 }
 
 export function formatPairs(pairs: PairPattern[]): string {
-  let out = "### Most Frequent Pairs\n\n";
-  if (pairs.length === 0) {
-    out += "No significant pair patterns found.\n\n";
-  } else {
-    out +=
-      "| Pair | Occurrences | Last Seen |\n|------|-------------|-----------|\n";
-    for (const p of topN(pairs, 15)) {
-      out += `| ${p.pair[0]}-${p.pair[1]} | ${p.occurrences} | ${formatDate(p.lastSeen)} |\n`;
-    }
-    out += "\n";
-  }
-  return out;
+  if (pairs.length === 0) return "Top pairs: none";
+  return `Top pairs: ${topN(pairs, 10).map((p) => `${p.pair[0]}-${p.pair[1]}(${p.occurrences}x)`).join(", ")}`;
 }
 
 export function formatPositional(patterns: PositionalPattern[]): string {
-  let out = "### Positional Frequency (most common at each sorted position)\n\n";
-  for (const pos of patterns) {
-    out += `**Position ${pos.position}:** `;
-    out += pos.mostFrequent
-      .map((e) => `${e.number} (${e.count}x)`)
-      .join(", ");
-    out += "\n";
-  }
-  out += "\n";
-  return out;
+  return `Positional: ${patterns.map((pos) => `P${pos.position}:${pos.mostFrequent.slice(0, 3).map((e) => e.number).join("/")}`).join(", ")}`;
 }
 
 export function formatAnalysis(result: AnalysisResult, config: GameConfig): string {
-  let out = `## ${config.name} — Full Analysis\n\n`;
-  out += `**Total Draws:** ${result.totalDraws} | `;
-  out += `**Date Range:** ${formatDate(result.dateRange.from)} – ${formatDate(result.dateRange.to)}\n\n`;
-  out += "---\n\n";
-
-  out += formatFrequency(result.frequency, "Main");
-  out += formatHotCold(result.hotCold, "Main");
-  out += formatGaps(result.gaps);
-  out += formatPairs(result.patterns.pairs);
+  let out = `${config.name} analysis (${result.totalDraws} draws, ${formatDate(result.dateRange.from)} – ${formatDate(result.dateRange.to)})\n`;
+  out += formatFrequency(result.frequency, "Main") + "\n";
+  out += formatHotCold(result.hotCold, "Main") + "\n";
+  out += formatGaps(result.gaps) + "\n";
+  out += formatPairs(result.patterns.pairs) + "\n";
   out += formatPositional(result.patterns.positional);
 
   return out;
 }
 
 export function formatPredictions(result: PredictionResult, config: GameConfig): string {
-  let out = `## ${config.name} — Predicted Numbers\n\n`;
-  out += `**Based on:** ${result.basedOnDraws} historical draws | `;
-  out += `**Generated:** ${formatDate(result.analysisDate)}\n\n`;
+  let out = `${config.name} Predictions (${result.basedOnDraws} draws analyzed)\n\n`;
 
   for (let i = 0; i < result.sets.length; i++) {
     const set = result.sets[i];
-    out += `### Set ${i + 1} — ${set.strategy}\n\n`;
-    out += `**Numbers:** ${set.mainNumbers.join(" - ")}`;
+    out += `Set ${i + 1} [${set.strategy}]: ${set.mainNumbers.join(", ")}`;
     if (set.bonusNumber != null && config.bonusPool) {
-      out += ` | **${config.bonusPool.label}:** ${set.bonusNumber}`;
+      out += ` + ${config.bonusPool.label}: ${set.bonusNumber}`;
     }
-    out += "\n\n";
-    out += `*${set.reasoning}*\n\n`;
+    out += "\n";
   }
 
-  out += "---\n\n";
-  out += result.disclaimer + "\n";
+  out += "\nDisclaimer: Predictions are for entertainment only. Lottery draws are random.";
 
   return out;
 }
 
 export function formatStats(draws: DrawResult[], config: GameConfig): string {
   if (draws.length === 0) {
-    return `## ${config.name}\n\nNo data available. Run the data update tool first.\n`;
+    return `${config.name}: No data available. Run lottery_update_data first.`;
   }
 
   const sorted = [...draws].sort((a, b) => a.date.getTime() - b.date.getTime());
   const latest = sorted[sorted.length - 1];
   const oldest = sorted[0];
 
-  // Count main number frequencies
   const counts: Record<number, number> = {};
   for (const draw of draws) {
     for (const num of draw.mainNumbers) {
@@ -177,26 +116,17 @@ export function formatStats(draws: DrawResult[], config: GameConfig): string {
   const top5 = sortedNums.slice(0, 5);
   const bottom5 = sortedNums.slice(-5).reverse();
 
-  let out = `## ${config.name} — Quick Stats\n\n`;
-  out += `| Stat | Value |\n|------|-------|\n`;
-  out += `| Total Draws | ${draws.length} |\n`;
-  out += `| Date Range | ${formatDate(oldest.date)} – ${formatDate(latest.date)} |\n`;
-  out += `| Draw Days | ${config.drawDays.join(", ")} |\n`;
-  out += `| Main Pool | ${config.mainPool.count} from ${config.mainPool.min}-${config.mainPool.max} |\n`;
+  let out = `${config.name}: ${draws.length} draws, ${formatDate(oldest.date)} – ${formatDate(latest.date)}, draws ${config.drawDays.join("/")}`;
+  out += `, pool: ${config.mainPool.count} from ${config.mainPool.min}-${config.mainPool.max}`;
   if (config.bonusPool) {
-    out += `| ${config.bonusPool.label} | 1 from ${config.bonusPool.min}-${config.bonusPool.max} |\n`;
+    out += ` + ${config.bonusPool.label} 1-${config.bonusPool.max}`;
   }
-  out += "\n";
-
-  out += `### Latest Draw (${formatDate(latest.date)})\n\n`;
-  out += `**Numbers:** ${latest.mainNumbers.join(" - ")}`;
+  out += `\nLatest (${formatDate(latest.date)}): ${latest.mainNumbers.join(", ")}`;
   if (latest.bonusNumber != null && config.bonusPool) {
-    out += ` | **${config.bonusPool.label}:** ${latest.bonusNumber}`;
+    out += ` + ${config.bonusPool.label}: ${latest.bonusNumber}`;
   }
-  out += "\n\n";
-
-  out += `### Most Common Numbers\n${top5.map((n) => `- **${n.number}** (${n.count}x)`).join("\n")}\n\n`;
-  out += `### Least Common Numbers\n${bottom5.map((n) => `- **${n.number}** (${n.count}x)`).join("\n")}\n`;
+  out += `\nMost common: ${top5.map((n) => `${n.number}(${n.count}x)`).join(", ")}`;
+  out += `\nLeast common: ${bottom5.map((n) => `${n.number}(${n.count}x)`).join(", ")}`;
 
   return out;
 }
